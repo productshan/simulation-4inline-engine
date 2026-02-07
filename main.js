@@ -9,10 +9,6 @@ const angleValue = document.getElementById('angleValue');
 const playPauseBtn = document.getElementById('playPauseBtn');
 const resetBtn = document.getElementById('resetBtn');
 
-const viewToggle = document.getElementById('viewToggle');
-const ghostToggle = document.getElementById('ghostToggle');
-const ghostToggleContainer = document.getElementById('ghostToggleContainer');
-
 const engine = new Engine();
 const visualizer = new Visualizer(canvas, engine);
 

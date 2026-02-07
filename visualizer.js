@@ -8,7 +8,7 @@ class Visualizer {
         this.ctx = canvas.getContext('2d');
         this.engine = engine;
 
-        this.viewMode = 'front'; // 'front' or 'side'
+        this.viewMode = 'side'; // 'front' or 'side'
         this.showGhost = false;
 
         this.width = canvas.width;
@@ -18,8 +18,8 @@ class Visualizer {
         this.cylCount = 4;
         this.cylWidth = 100;
         this.cylSpacing = 60;
-        this.pistonHeight = 90;
-        this.renderScale = 2.0;
+        this.pistonHeight = 120;
+        this.renderScale = 1.0;
 
         this.baseY = 240;
         this.crankCenterY = 540;
@@ -120,7 +120,7 @@ class Visualizer {
     drawCrankshaft(startX, totalWidth) {
         const ctx = this.ctx;
         const centerY = this.crankCenterY;
-        const r = this.engine.crankRadius * this.renderScale;
+        const r = this.engine.crankRadius * this.renderScale * 0.5;
 
         for (let i = 0; i < this.cylCount; i++) {
             const centerX = startX + i * (this.cylWidth + this.cylSpacing) + this.cylWidth / 2;
@@ -158,7 +158,7 @@ class Visualizer {
         const posFront = this.engine.getPistonPositionFront(index);
         const posSide = this.engine.getPistonPositionSide(index);
 
-        const strokeScale = this.engine.crankRadius * this.renderScale * 2;
+        const strokeScale = this.engine.crankRadius * this.renderScale * 1.2;
         const currentPos = this.viewMode === 'front' ? posFront : posSide;
         const pistonY = this.baseY + currentPos * strokeScale;
         const centerX = x + this.cylWidth / 2;
@@ -174,12 +174,12 @@ class Visualizer {
     drawRod(centerX, pistonY, index) {
         const ctx = this.ctx;
         const theta = (this.engine.angle + this.engine.pistonOffsets[index]) * (Math.PI / 180);
-        const r = this.engine.crankRadius * this.renderScale;
+        const r = this.engine.crankRadius * this.renderScale * 0.5;
         const l = this.engine.conRodLength * this.renderScale;
 
         const pinX = centerX + Math.sin(theta) * r;
         const pinY = this.crankCenterY - Math.cos(theta) * r;
-        const rodTopY = pistonY + this.pistonHeight * 0.8;
+        const rodTopY = pistonY + this.pistonHeight * 0.3;
 
         if (this.viewMode === 'side') {
             this.drawActualRod(centerX, rodTopY, pinX, pinY, '#aaa', 1.0);
@@ -187,9 +187,10 @@ class Visualizer {
             if (this.showGhost) {
                 this.drawActualRod(centerX, rodTopY, pinX, pinY, 'rgba(100,200,255,0.3)', 0.5, true);
             }
-            ctx.fillStyle = '#777';
+            ctx.strokeStyle = 'red';
+            ctx.fillStyle = '#c4c4c4';
             ctx.fillRect(centerX - 15, rodTopY, 30, pinY - rodTopY);
-            ctx.fillStyle = '#555';
+            ctx.fillStyle = 'red';
             ctx.fillRect(centerX - 40, pinY - 15, 80, 40);
             ctx.strokeRect(centerX - 40, pinY - 15, 80, 40);
         }
@@ -210,17 +211,56 @@ class Visualizer {
         ctx.restore();
     }
 
-    drawPiston(x, pistonY, stroke) {
-        const ctx = this.ctx;
-        const grad = ctx.createLinearGradient(x + 10, 0, x + this.cylWidth - 10, 0);
-        grad.addColorStop(0, '#666');
-        grad.addColorStop(0.5, '#ddd');
-        grad.addColorStop(1, '#666');
-        ctx.fillStyle = grad;
-        ctx.fillRect(x + 10, pistonY, this.cylWidth - 20, this.pistonHeight);
-        ctx.fillStyle = '#111';
-        [20, 32, 44].forEach(yo => ctx.fillRect(x + 10, pistonY + yo, this.cylWidth - 20, 3));
+drawPistonRings(step, ringCount, startPostionY) {
+    let arrayY = [];
+    for (let i = 0; i < ringCount; i++) {
+        arrayY.push(startPostionY + i * step);
     }
+    return arrayY;
+}
+
+drawPiston(x, pistonY, stroke = true) {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = '#c4c4c4';
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+
+    const bodyHeight = this.pistonHeight - 20; // tinggi piston tanpa lengkungan
+    const curveHeight = 20; // tinggi lengkungan bawah
+    const leftX = x + 10;
+    const rightX = x + this.cylWidth - 10;
+    const bottomY = pistonY + bodyHeight;
+
+    // ================== PISTON BODY DENGAN LENGKUNG BAWAH ==================
+    ctx.beginPath();
+    ctx.moveTo(leftX, pistonY); // kiri atas
+    ctx.lineTo(rightX, pistonY); // kanan atas
+    ctx.lineTo(rightX, bottomY); // turun ke kanan bawah
+    ctx.quadraticCurveTo(
+        x + this.cylWidth / 2, bottomY - curveHeight, // titik tengah naik
+        leftX, bottomY // kiri bawah
+    );
+    ctx.closePath();
+    ctx.fill();
+    if(stroke) ctx.stroke();
+
+    // ================== PISTON SHAFT HOLE ==================
+    ctx.beginPath();
+    const shaftX = x + this.cylWidth / 2;
+    const shaftY = bottomY - curveHeight / 2 - 15; // di tengah lengkungan
+    const shaftRadius = 10;
+    ctx.arc(shaftX, shaftY, shaftRadius, 0, Math.PI * 2);
+    ctx.fill();
+    if(stroke) ctx.stroke();
+    ctx.closePath();
+
+    // ================== PISTON RINGS ==================
+    ctx.fillStyle = '#111';
+    this.drawPistonRings(7, 5, 10).forEach(yo => {
+        ctx.fillRect(leftX, pistonY + yo, this.cylWidth - 20, 3);
+    });
+}
 
     drawStrokeGlow(x, pistonY, centerX, stroke, pos) {
         const ctx = this.ctx;
